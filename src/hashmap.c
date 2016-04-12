@@ -5,8 +5,7 @@
 #include "hashmap.h"
 
 hashmap *_hashmap(void) {
-    hashmap *result = ref_malloc(sizeof(hashmap), 1);
-    result->iterator_head = NULL;
+    hashmap *result = ref_malloc(sizeof(hashmap), 0);
     result->occupancy = 0;
     result->destructor = hashmap_destructor;
     for(size_t i=0;i<_hashmap_nodelist_count;i++) {
@@ -51,6 +50,7 @@ void *hashmap_put(hashmap *map, void *key, void *value) {
         }
         insert_in_array = insert_in_array->rest;
     }
+    insert_in_array = (map->nodes)[hashcode];
     
     key_value_pair *kvp = _key_value_pair(key, value);
     (map->nodes)[hashcode] = S(_list(kvp, insert_in_array));

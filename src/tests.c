@@ -28,9 +28,94 @@ START_TEST(hashmap_add) {
     {
         scoped hashmap *map = S(_hashmap());
         ASSERT_REF(
-            hashmap_put(map, _string("hello", false), _string("world", false))
-           ,NULL
-           ,"something came out of the hashmap!");
+                hashmap_put(map, _string("hello", false), _string("world", false))
+                ,NULL
+                ,"something came out of the hashmap!");
+    }
+    struct mallinfo post = mallinfo();
+    ASSERT_REF(init.uordblks, post.uordblks, "memory not freed");
+    ASSERT_SUCCESS();
+}
+
+START_TEST(hashmap_simple_itr) {
+    struct mallinfo init = mallinfo();
+    {
+        scoped hashmap *map = S(_hashmap());
+        scoped string *key = S(_string("hello", 0));
+        scoped string *value = S(_string("world", 0));
+        ASSERT_REF(hashmap_put(map, key, value),NULL,"add should return NULL");
+
+        size_t count = 0;
+        key_value_pair *kvp = NULL;
+        hashmap_itr(map, kvp) {
+            printf("-");
+            count++;
+        }
+
+        ASSERT_REF(count, 1, "should be one element in hashmap");
+    }
+    struct mallinfo post = mallinfo();
+    ASSERT_REF(init.uordblks, post.uordblks, "memory not freed");
+    ASSERT_SUCCESS();
+}
+
+START_TEST(hashmap_triple_itr) {
+    struct mallinfo init = mallinfo();
+    {
+        scoped hashmap *map = S(_hashmap());
+
+        scoped string *Akey = S(_string("hello", 0));
+        scoped string *Avalue = S(_string("world", 0));
+
+        scoped string *Bkey = S(_string("this", 0));
+        scoped string *Bvalue = S(_string("is", 0));
+
+        scoped string *Ckey = S(_string("a", 0));
+        scoped string *Cvalue = S(_string("test", 0));
+
+        ASSERT_REF(hashmap_put(map, Akey, Avalue),NULL,"add should return NULL");
+        ASSERT_REF(hashmap_put(map, Bkey, Bvalue),NULL,"add should return NULL");
+        ASSERT_REF(hashmap_put(map, Ckey, Cvalue),NULL,"add should return NULL");
+
+        size_t count = 0;
+        key_value_pair *kvp = NULL;
+        hashmap_itr(map, kvp) {
+            count++;
+        }
+        ASSERT_REF(count, 3, "should be three elements in hashmap");
+    }
+    struct mallinfo post = mallinfo();
+    ASSERT_REF(init.uordblks, post.uordblks, "memory not freed");
+    ASSERT_SUCCESS();
+}
+
+START_TEST(hashmap_add_remove_itr) {
+    struct mallinfo init = mallinfo();
+    {
+        scoped hashmap *map = S(_hashmap());
+
+        scoped string *Akey = S(_string("hello", 0));
+        scoped string *Avalue = S(_string("world", 0));
+
+        scoped string *Bkey = S(_string("this", 0));
+        scoped string *Bvalue = S(_string("is", 0));
+
+        scoped string *Ckey = S(_string("a", 0));
+        scoped string *Cvalue = S(_string("test", 0));
+
+        ASSERT_REF(hashmap_put(map, Akey, Avalue),NULL,"add should return NULL");
+        ASSERT_REF(hashmap_put(map, Bkey, Bvalue),NULL,"add should return NULL");
+        ASSERT_REF(hashmap_put(map, Ckey, Cvalue),NULL,"add should return NULL");
+
+        void *d = hashmap_remove(map, Bkey);
+        L(d);
+
+        size_t count = 0;
+        key_value_pair *kvp = NULL;
+        hashmap_itr(map, kvp) {
+            count++;
+        }
+        ASSERT_REF(count, 2, "should be three elements in hashmap");
     }
     struct mallinfo post = mallinfo();
     ASSERT_REF(init.uordblks, post.uordblks, "memory not freed");
@@ -43,9 +128,9 @@ START_TEST(hashmap_cant_add) {
         scoped hashmap *map = S(_hashmap());
         scoped list *nums = numeric_range(10, 20);
         ASSERT_REF(
-            hashmap_put(map, nums, _string("world", false))
-           ,(void *)1
-           ,"hashmap insert didnt return 1");
+                hashmap_put(map, nums, _string("world", false))
+                ,(void *)1
+                ,"hashmap insert didnt return 1");
     }
     struct mallinfo post = mallinfo();
     ASSERT_REF(init.uordblks, post.uordblks, "memory not freed");
@@ -96,7 +181,6 @@ START_TEST(hashmap_retrieve) {
 }
 
 START_TEST(hashmap_removal) {
-    struct mallinfo init = mallinfo();
     {
         scoped hashmap *map = S(_hashmap());
         scoped string *value1 = S(_string("test A: value1", false));
@@ -106,6 +190,38 @@ START_TEST(hashmap_removal) {
         void *should_be_value1 = hashmap_remove(map, _string("hello", false));
         ASSERT_REF(should_be_value1, value1, "hashmap not returning ptr to old val");
         L(value1);
+    }
+    ASSERT_SUCCESS();
+}
+
+START_TEST(hashmap_many_op) {
+    char *seed = "abcdefghijklmnopqrstuvwxyz";
+    char *t = seed;
+    string *AA;
+    hashmap *a = NULL;
+    struct mallinfo init = mallinfo();
+    {
+        scoped hashmap *map = S(_hashmap());
+        a = map;
+        while(*t) {
+            char *strA = malloc(2 * sizeof(char));
+            char *strB = malloc(2 * sizeof(char));
+            strA[0] = strB[0] = t[0];
+            strA[1] = strB[1] = 0;
+            string *a = _string(strA, 1);
+            string *b = _string(strB, 1);
+            void *ret = hashmap_put(map, a, b);
+            AA = a;
+            t++;
+        }
+
+        key_value_pair *v = NULL;
+        hashmap_itr(map, v) {
+            string *s = v->value;
+            printf("%s : %u\n", s->str, s->hashcode(s));
+        }
+
+        L(map);
     }
     struct mallinfo post = mallinfo();
     ASSERT_REF(init.uordblks, post.uordblks, "memory not freed");
